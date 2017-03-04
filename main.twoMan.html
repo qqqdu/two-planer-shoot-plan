@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+<meta charset="utf-8">
+ <meta name="viewport" content="width=640, minimum-scale=0.5, maximum-scale=0.75, user-scalable=no,target-densityDpi=device-dpi">
+<script type="text/javascript" src="socket.io.js"></script>
+<script type="text/javascript" src="jcscript.js"></script>
+<link rel="stylesheet" type="text/css" href="css/style.css">
+<link rel="stylesheet" type="text/css" href="css/keyframes.css">
+</head>
+<body>
+<section class="gameTable"> 
+	<canvas id="mycanvas"  style="position: absolute;" ></canvas>
+	<script type="text/javascript">
+		var mycanvas = document.getElementById("mycanvas");
+		mycanvas.width = document.body.clientWidth;
+		mycanvas.height = document.body.clientHeight;
+	</script>
+	<div id="delay">
+		<div class="gameHead">
+			玩家1<br/>
+			分数:<span class="totalNum">0</span><br/>
+			玩家生命:<span class="totalLife"> 10</span><br/>
+			
+		</div>
+		<div class="gameHeadRight" style="display: block;">
+			玩家2<br/>
+			分数:<span class="totalNum">0</span><br/>
+			玩家生命:<span class="totalLife"> 10</span><br/>
+			
+		</div>
+		<div id="levelTo">
+			第 <span>1</span> 关
+		</div>
+		<div id="musicCls" style="display: hidden;">
+			<audio id="heroMusic"></audio>
+			<audio id="break"></audio>
+		</div>
+	</div>
+</section>
+
+</body>
+<script>
+
+var mycanvas = document.getElementById("mycanvas");
+var totalNum = document.getElementsByClassName("totalNum");
+var totalLife = document.getElementsByClassName("totalLife");
+var gameBody = {	//gameBody
+		window_x : document.body.clientWidth,
+		window_y : document.body.clientHeight,
+		levelNum : [10,20,40,50,40,40,80],
+		shotSize: 5,  
+		plan1 	: [], //小怪物数组，下同
+		plan2 	: [],
+		timer 	: null, //生产怪物定时器
+		gameTimer : null, //监测碰撞定时器
+		planWhich : null,
+		planWhich_1 : null,
+		 //socket 业务
+		id : Math.floor(Math.random()*100000)+Math.floor(new Date()), //socket用户id
+		username 	: 1, //socket匹配码
+		img1 : 1,
+		img2 : 1,
+		socketStart	: function(){ 
+			socket = io.connect("ws://localhost:3000");
+		},
+		socketConnect : function(username,id){
+			socket.emit('login', {username:username, id:id});
+			socket.on('logins', function(o){
+				console.log(1);
+						if(o.statu==1){
+							console.log("匹配成功");
+							if(o.plan==1){
+								console.log("装机了");
+								gameBody.img1 = "img/passengers_airplane_63.872763419483px_1165575_easyicon.net.png";
+								gameBody.img2 = "img/Plane_67.324675324675px_1132190_easyicon.net.png";
+								gameBody.planWhich = "heroPlan_12";
+								gameBody.planWhich_1 = "heroPlan_22";
+							}else{
+								gameBody.img1 = "img/Plane_67.324675324675px_1132190_easyicon.net.png";
+								gameBody.img2 = "img/passengers_airplane_63.872763419483px_1165575_easyicon.net.png";
+								gameBody.planWhich = "heroPlan_22";
+								gameBody.planWhich_1 = "heroPlan_12";
+							}
+							startGame();
+						}
+				});
+		},
+		socketSend : function(x,y,id){
+			socket.emit('reSend',{
+						x : x,
+						y : y,
+						name : id
+					});
+		},
+		socketRes  : function(){
+			socket.on("receive",function(o){  //鎺ユ敹鍒�
+				jc("#"+gameBody.planWhich_1).translateTo(o.x,o.y);
+				return 0;
+			});
+		},
+		badGay_boss_1 : {  // boss 1
+					life : 50,
+					width: function(){
+					 return	gameBody.window_x/2.4
+					},
+					height:function(){
+					 return	gameBody.window_x/2.4
+					},
+					shotTimer : null,
+					attack:function(option){	
+							jc.circle(option.index_x,option.index_y,gameBody.shotSize,'#ff9800',true)
+							.id(option.id)
+							.addName("touchIt");//增加name
+					       	jc("#"+option.id).animate({x:getRadiu(option.i,500,option.boss_x,option.boss_y).left,y:getRadiu(option.i,500,option.boss_x,option.boss_y).tops},4000,function(){
+					       		jc("#"+option.id).del();
+					       		//jc("#"+option.id).addName("touchIt"); //增加name
+					       	});	//运动      
+					},
+					shot1 :function(boss_x,boss_y,num){  //托马斯螺旋加速炮
+						jc.start("mycanvas",true);
+						
+							for(var i=0;i<10;i++){
+								X = getRadiu(i,10,boss_x,boss_y).left;
+								Y = getRadiu(i,10,boss_x,boss_y).tops;
+								
+								id = "boss_1_shoot" + i + num;
+								gameBody.badGay_boss_1.attack( {
+										canvas:"mycanvas", 
+										boss_x : boss_x, //boss x位置
+										boss_y : boss_y, //boss y位置
+										index_x:X, 	//子弹当前位置
+										index_y:Y,
+										id:id, 	
+										row:row,  //子弹的角度
+										num:num, //第几波子弹
+										i:i} );
+							}
+					}, 
+					break : function(){
+						if(this.life == 0){
+							jc("#badGay_boss_1").del();
+							clearInterval(this.shotTimer);
+						}
+					},
+					draw: function(option){	
+						var img=new Image();
+						img.src="img/search_monster_256px_1097005_easyicon.net.png";
+						img.onload=function(){
+							jc.start(option.canvas,true);
+							jc.image(img,option.x,option.y,gameBody.badGay_boss_1.width(),gameBody.badGay_boss_1.height()).id(option.id).addName("touchBoss");
+							jc.start(option.canvas,true);
+							setTimeout(function(){
+								jc("#"+option.id).animate({x:gameBody.window_x/2-78,y:100},5000,function(){ //怪物入场后
+									gameBody.badGay_boss_1.move({
+										id:option.id,
+										canvas: "mycanvas",
+										move_X:350,
+										move_Y:100
+									});
+									var num = 0;
+								this.shotTimer = setInterval(function(){
+											var position = jc("#"+option.id).position();
+											gameBody.badGay_boss_1.shot1(position.x,position.y,num);
+											num++;
+									},1000);
+								});	
+							},300)
+						}
+					},
+					move : function(option){
+
+						var random_x = Math.floor(Math.random()*gameBody.window_x)-gameBody.badGay_boss_1.width()/2;
+						var random_y = Math.floor(Math.random()*gameBody.window_y/3)-gameBody.badGay_boss_1.height()/2;
+						var position = jc("#"+option.id).position(); //当前位置
+						jc("#"+option.id).animate({x:option.move_X,y:option.move_Y},2000,function(){
+									gameBody.badGay_boss_1.move({
+										id:option.id,
+										canvas: "mycanvas",
+										move_X:random_x,
+										move_Y:random_y
+									});
+						});
+					}
+		},
+		badGay_boss_2 : {	// boss 2
+
+					life : 50,
+					width: function(){
+					 return	gameBody.window_x/2.4
+					},
+					height:function(){
+					 return	gameBody.window_x/2.4
+					},
+					shotTimer : null,
+					attack:function(option){	
+							jc.circle(option.index_x,option.index_y,gameBody.shotSize,'#ff9800',true).id(option.id).addName("touchIt");
+					       	jc("#"+option.id).animate({x:getRadiu_2(option.i,1000,option.boss_x,option.boss_y).left,y:getRadiu_2(option.i,1000,option.boss_x,option.boss_y).tops},4000,function(){
+					       		jc("#"+option.id).del();
+					       	});	//运动      
+					},
+					shot1 :function(boss_x,boss_y,num){  //托马斯螺旋加速炮
+						jc.start("mycanvas",true);
+							for(var i=0;i<10;i++){
+								X = getRadiu_2(i,10,boss_x,boss_y).left;
+								Y = getRadiu_2(i,10,boss_x,boss_y).tops;
+								
+								id = "boss_2_shoot" + i + num;
+								gameBody.badGay_boss_2.attack( {
+										canvas:"mycanvas", 
+										boss_x : boss_x, //boss x位置
+										boss_y : boss_y, //boss y位置
+										index_x:X, 	//子弹当前位置
+										index_y:Y,
+										id:id, 	
+										row:row,  //子弹的角度
+										num:num, //第几波子弹
+										i:i} );
+							}
+					}, 
+					break : function(){
+						if(this.life == 0){
+							jc("#badGay_boss_2").del();
+							clearInterval(this.shotTimer);
+						}
+					},
+					draw: function(option){	//敌人一
+						var img=new Image();
+						img.src="img/trash_empty_monster_256px_1097006_easyicon.net.png";
+						img.onload=function(){
+							jc.start(option.canvas,true);
+							jc.image(img,option.x,option.y,gameBody.badGay_boss_2.width(),gameBody.badGay_boss_2.height()).id(option.id).addName("touchBoss");
+
+							jc.start(option.canvas,true);
+							setTimeout(function(){
+								jc("#"+option.id).animate({x:100,y:100},5000,function(){ //怪物入场后
+									gameBody.badGay_boss_2.move({
+										id:option.id,
+										canvas: "mycanvas",
+										move_X:0,
+										move_Y:100
+									});
+									var num = 0;
+								this.shotTimer = setInterval(function(){
+											var position = jc("#"+option.id).position();
+											gameBody.badGay_boss_2.shot1(position.x,position.y,num);
+											num++;
+									},1000);
+								});	
+							},300)
+						}
+					},
+					move : function(option){
+
+						var random_x = Math.floor(Math.random()*gameBody.window_x)-gameBody.badGay_boss_2.width()/2;
+						var random_y = Math.floor(Math.random()*gameBody.window_y/2)-gameBody.badGay_boss_2.height()/2;
+						var position = jc("#"+option.id).position(); //当前位置
+						jc("#"+option.id).animate({x:option.move_X,y:option.move_Y},2000,function(){
+									gameBody.badGay_boss_2.move({
+										id:option.id,
+										canvas: "mycanvas",
+										move_X:random_x,
+										move_Y:random_y
+									});
+								});
+					}
+		},
+		badGaySmall_1 : function(options){  //小兵一
+					var num = options.index_k; //第几波怪物
+					var num_1 = 0;
+					var _this = this;
+					_this.life = 2;
+					_this.width=gameBody.window_x/10;
+					_this.height=gameBody.window_x/10;
+					var timer = [];
+					_this.break = function(k){
+						if(_this.life == 0){
+								jc("#badguys1"+options.id).del();
+								gameBody.plan2.splice(k,1);
+								var breaks = document.getElementById("break");
+								breaks.play();
+								clearInterval(timer[num]);
+								return true;
+						}
+					}
+					var badGay_plan_1 = {
+
+							draw : function(option){
+								
+								var img=new Image();
+								img.src="img/fighter_spaceship_64px_11913_easyicon.net.png";
+								img.onload=function(){
+									jc.start(option.canvas,true);
+									jc.image(img,gameBody.randomSmall(gameBody.window_x-32),-64,_this.width,_this.height).id('badguys1'+options.id).addName("touchPlan_2");
+									jc.start(option.canvas,true);
+
+									setTimeout(function(){
+										jc("#badguys1"+options.id).animate({y:gameBody.window_y},options.speed*3,function(){
+											jc("#badguys1"+options.id).del();	
+											gameBody.plan2.shift();
+											clearInterval(timer[num]);
+										});
+									if(options.shotOnff)
+										 timer[num] = setInterval(function(){
+												var position = jc("#badguys1"+options.id).position();
+												num_1++;
+												badGay_plan_1.shot({
+													canvas:"mycanvas",
+													index_x : position.x,
+													index_y : position.y,
+													num : num+'badguys1'+num_1 //第几架战机
+													
+												});
+											},1000);
+										},100);
+								}
+							},
+							shot : function(option){
+								jc.start(option.canvas,true);
+								jc.circle(option.index_x+12,option.index_y+68,gameBody.shotSize,'#ff9800',true).id("badGaySmall_1"+option.num+1).addName("touchIt");
+								jc.circle(option.index_x+25,option.index_y+68,gameBody.shotSize,'#ff9800',true).id("badGaySmall_1"+option.num+2).addName("touchIt");
+								jc.circle(option.index_x+38.3,option.index_y+68,gameBody.shotSize,'#ff9800',true).id("badGaySmall_1"+option.num+3).addName("touchIt");
+								jc.circle(option.index_x+50,option.index_y+68,gameBody.shotSize,'#ff9800',true).id("badGaySmall_1"+option.num+4).addName("touchIt");
+
+								jc("#badGaySmall_1"+option.num+1).animate({y:gameBody.window_y*2},options.speed,function(){
+									jc("#badGaySmall_1"+option.num+1).del();
+									
+								});
+								jc("#badGaySmall_1"+option.num+2).animate({y:gameBody.window_y*2},options.speed,function(){
+									jc("#badGaySmall_1"+option.num+2).del();
+								});
+								jc("#badGaySmall_1"+option.num+3).animate({y:gameBody.window_y*2},options.speed,function(){
+									jc("#badGaySmall_1"+option.num+3).del();
+								});
+								jc("#badGaySmall_1"+option.num+4).animate({y:gameBody.window_y*2},options.speed,function(){
+									jc("#badGaySmall_1"+option.num+4).del();
+								});
+
+							}
+					}
+
+					badGay_plan_1.draw({canvas:"mycanvas"});
+
+		},
+		badGaySmall_2 : function(options){ //小兵2
+					var num = options.index_k; //第几波怪物
+					var num_1 = 0;
+					var timer = []; 
+					var _this = this;
+					_this.life = 3;
+					_this.width=gameBody.window_x/10;
+					_this.height=gameBody.window_x/10;
+					_this.break = function(k){
+						if(_this.life == 0){
+											jc("#badguys2"+options.id).del();
+											gameBody.plan1.splice(k,1);
+											 var breaks = document.getElementById("break");
+											 breaks.play();
+											clearInterval(timer[num]);
+											return true;
+						}
+					}
+					//img/Tie_Fighter_64px_1082537_easyicon.net.png
+					var badGay_plan_2 = {
+							draw : function(option){
+								var img=new Image();
+								img.src="img/Tie_Fighter_64px_1082537_easyicon.net.png";
+								img.onload=function(){
+									jc.start(option.canvas,true);
+									jc.image(img,gameBody.randomSmall(gameBody.window_x-32),-64,_this.width,_this.height).id('badguys2'+options.id).addName("touchPlan_1");
+									jc.start(option.canvas,true);
+
+									setTimeout(function(){
+
+										jc("#badguys2"+options.id).animate({y:gameBody.window_y},options.speed*3,function(){
+											jc("#badguys2"+options.id).del();
+											//plan1.splice(0,1);
+											gameBody.plan1.shift();
+											
+											//console.log(plan1.length);
+											clearInterval(timer[num]);
+										});
+								if(options.shotOnff)
+									 timer[num] = setInterval(function(){
+											var position = jc('#badguys2'+options.id).position();
+											num_1++;
+											
+											badGay_plan_2.shot({
+												canvas:"mycanvas",
+												index_x : position.x,
+												index_y : position.y,
+												num : 'badguys2'+num+num_1 //第几架战机
+											});
+
+										},1000);
+										
+									},300);
+								}
+							},
+							shot : function(option){
+
+								jc.start(option.canvas,true);
+								jc.circle(option.index_x+16,option.index_y+68,gameBody.shotSize,'#ff9800',true).id(option.num+1).addName("touchIt");
+								jc.circle(option.index_x+48,option.index_y+68,gameBody.shotSize,'#ff9800',true).id(option.num+2).addName("touchIt");
+								
+								jc("#"+option.num+1).animate({y:gameBody.window_y*2},options.speed,function(){
+									jc("#"+option.num+1).del();
+									
+								});
+								jc("#"+option.num+2).animate({y:gameBody.window_y*2},options.speed,function(){
+									jc("#"+option.num+2).del();
+								});
+
+							}
+
+					}
+					badGay_plan_2.draw({canvas:"mycanvas"});
+		},
+		heroPlan_1 : {
+					num  : 0,
+					life : 10,
+					width : function(){
+						return gameBody.window_x/10
+					},
+					height: function(){
+						return gameBody.window_x/10
+					},
+				//	x : gameBody.randomSmall(gameBody.window_x)/2,
+			//		y : (gameBody.window_y-300),
+					imgSrc :function(){
+						return gameBody.img1;
+					},
+					draw : function(option){
+						
+								var img = new Image();
+								img.src =gameBody.heroPlan_1.imgSrc();
+								img.onload=function(){
+								
+									jc.start("mycanvas",true);
+									
+									jc.image(img,100,400,gameBody.heroPlan_1.width(),gameBody.heroPlan_1.height())
+									.id("heroPlan_12");
+									jc("#heroPlan_12").level(99);
+									//gameBody.heroPlan_1.move("heroPlan_12");
+									
+									jc.start("mycanvas",true);
+									
+									setInterval(function(){
+										gameBody.heroPlan_1.num++;
+											gameBody.heroPlan_1.shot({
+											canvas:"mycanvas",
+											index_x: jc('#heroPlan_12').position().x,
+											index_y:jc('#heroPlan_12').position().y,
+											num:gameBody.heroPlan_1.num+'heroPlan_12',
+											speed:3000
+										});
+									},500);
+										
+								}
+					},
+					shot : function(option){
+						jc.start(option.canvas,true);
+						jc.circle(option.index_x+gameBody.heroPlan_1.width()/2,option.index_y-gameBody.heroPlan_1.width()/3,gameBody.shotSize,'#ff9800',true).id(option.num).addName("heroShot");
+						jc("#"+option.num).animate({y:-gameBody.window_y*2},option.speed,function(){
+									jc("#"+option.num).del();
+
+						});
+						
+						gameBody.heroPlan_1.musicShot();
+					},
+					musicShot : function(){
+						 var oAudio = document.getElementById('heroMusic');        
+				         oAudio.play();
+					},
+					musicStop : function(){
+						var oAudio = document.getElementById('heroMusic');        
+				         oAudio.stop();
+					},
+					break : function(){  //损坏函数
+						if(this.life==0){
+										jc("#heroPlan_12").del();
+										
+										//alert("game over!");
+										clearInterval(gameBody.timer);
+										clearInterval(gameBody.gameTimer);
+										gameBody.heroPlan_1.musicStop();
+										startGame();
+									}
+					},
+					move : function(id){
+						jc('#'+id).mousedown(function(){
+							alert(1);
+						})
+					
+						
+					}
+		},
+		heroPlan_2 : {
+					num  : 0,
+					life : 10,
+					
+					width : function(){
+						return gameBody.window_x/10
+					},
+					height: function(){
+						return gameBody.window_x/10
+					},
+					imgSrc : function(){
+						return gameBody.img2;
+					},
+					draw : function(option){
+						
+								var img=new Image();
+								img.src=gameBody.heroPlan_2.imgSrc();
+								img.onload=function(){
+								
+									jc.start("mycanvas",true);
+									jc.image(img,200,400,gameBody.heroPlan_2.width(),gameBody.heroPlan_2.height())
+									.id("heroPlan_22");
+									jc("#heroPlan_22").level(99);
+									//gameBody.heroPlan_1.move("heroPlan_12");
+									
+									jc.start("mycanvas",true);
+									
+									setInterval(function(){
+										gameBody.heroPlan_2.num++;
+											gameBody.heroPlan_2.shot({
+											canvas:"mycanvas",
+											index_x: jc('#heroPlan_22').position().x,
+											index_y:jc('#heroPlan_22').position().y,
+											num:gameBody.heroPlan_2.num+'heroPlan_22',
+											speed:3000
+										});
+									},500);
+										
+								}
+					},
+					shot : function(option){
+						jc.start(option.canvas,true);
+						jc.circle(option.index_x+gameBody.heroPlan_1.width()/2,option.index_y-gameBody.heroPlan_1.width()/3,gameBody.shotSize,'#ff9800',true).id(option.num).addName("heroShot");
+						jc("#"+option.num).animate({y:-gameBody.window_y*2},option.speed,function(){
+									jc("#"+option.num).del();
+
+						});
+						
+						gameBody.heroPlan_2.musicShot();
+					},
+					musicShot : function(){
+						 var oAudio = document.getElementById('heroMusic');        
+				         oAudio.play();
+					},
+					musicStop : function(){
+						var oAudio = document.getElementById('heroMusic');        
+				         oAudio.stop();
+					},
+					break : function(){  //损坏函数
+						if(this.life==0){
+										jc("#heroPlan_22").del();
+										
+										//alert("game over!");
+										clearInterval(gameBody.timer);
+										clearInterval(gameBody.gameTimer);
+										gameBody.heroPlan_2.musicStop();
+										startGame();
+									}
+					},
+					move : function(id){
+						jc('#'+id).mousedown(function(){
+							alert(1);
+						})
+					
+						
+					}
+		},
+		levelTo : function(level){
+			var levelToId = document.getElementById("levelTo");
+			var span = levelToId.getElementsByTagName("span")[0];
+			span.innerHTML = level;
+			levelToId.style.display = "block";
+			levelToId.style.top = "600px";
+			var topRel = 500;
+			var ten = 100;
+			 levelToTm = setInterval(function(){
+				var tops = levelToId.offsetTop;
+				if(tops<=topRel){
+					levelToId.style.display = "none";
+					clearInterval(levelToTm);
+				}
+				if(ten%10==0)
+					levelToId.style.opacity = ten/100;
+				levelToId.style.top = tops-1+'px';
+				ten--;
+			},20);
+		},
+		attackMe : function(){
+			mycanvas.style.border = "3px solid red";
+			setTimeout(function(){
+				mycanvas.style.border = "none";
+			},1000);
+
+		},
+		listenBoom : function(obj1,obj2,obj3,k,r){
+			var x1 = obj1.position().x;
+			var y1 = obj1.position().y;
+			var x2 = obj2.position().x;
+			var y2 = obj2.position().y;
+			try{  //防止在监测时有的飞机数组位置已改变而造成的获取不到height和width
+				if(x1+10>=x2&&x1<=x2+obj3.width)
+					if(y1+10>=y2&&y1<=y2+obj3.height){
+						obj1.del();
+						obj3.life--;
+						if(r)
+							gameBody.attackMe();
+						if(obj3.break(k||null)){
+							totalNum[0].innerHTML =totalNum[0].innerHTML/1 + 1;
+						}
+						//console.log(obj3.life)
+						//console.log("life is"+gameBody.heroPlan_1.life);
+					}
+			}
+			catch(err){
+				return;
+			}
+		},
+		randomSmall : function(one){
+			if(Math.floor(Math.random()*one)<0)
+			return 	Math.floor(Math.random()*one) = -Math.floor(Math.random()*one);
+			else
+			return 	Math.floor(Math.random()*one)
+		}
+};
+		
+		
+		var number = 1;
+		level = 0;
+		var k1 = 0;
+		
+		gameBody.socketStart();
+		gameBody.socketConnect(gameBody.username,gameBody.id);
+		gameBody.socketRes();
+function startGame(){
+			gameBody.heroPlan_1.life = 10; //友军
+			gameBody.plan1.length = 0;
+			gameBody.plan2.length = 0;
+			level = 0;
+			number = 1;
+			k1 = 0;
+			getLevel(level,0);
+			
+			gameBody.levelTo(1);
+
+			setTimeout(function(){
+				gameBody.heroPlan_1.draw({canvas:"mycanvas"})
+				gameBody.heroPlan_2.draw({canvas:"mycanvas"})
+				
+				clickCanvas(gameBody.planWhich);//移动
+			},1000)
+	}
+	
+	
+		
+duhao_this.duhao = function(){  //监听碰撞函数
+				
+		totalLife[0].innerHTML = gameBody.heroPlan_1.life;
+		for(var i = 0;i<jc(".touchIt").elements.length;i++){  //玩家监听
+			gameBody.listenBoom(jc(".touchIt").elements[i],jc("#heroPlan_12"),gameBody.heroPlan_1,0,true);  
+		}
+		for(var i = 0;i<jc(".touchIt").elements.length;i++){  //玩家监听
+			gameBody.listenBoom(jc(".touchIt").elements[i],jc("#heroPlan_22"),gameBody.heroPlan_2,0,true);  
+		}
+		//touchPlan 敌机 heroShot  子弹  
+		for(var k = 0;k<jc(".touchPlan_1").elements.length;k++){  //敌机二监听
+			for(var j = 0;j<jc(".heroShot").elements.length;j++){
+			gameBody.listenBoom(jc(".heroShot").elements[j],jc(".touchPlan_1").elements[k],gameBody.plan1[k],k);
+			}
+		}
+		for(var k = 0;k<jc(".touchPlan_2").elements.length;k++){  //敌机一监听 
+			for(var j = 0;j<jc(".heroShot").elements.length;j++){
+			gameBody.listenBoom(jc(".heroShot").elements[j],jc(".touchPlan_2").elements[k],gameBody.plan2[k],k);
+			}
+		}
+		
+		for(var i = 0;i<jc(".heroShot").elements.length;i++){
+		gameBody.listenBoom(jc(".heroShot").elements[i],jc("#badGay_boss_1"),gameBody.badGay_boss_1);
+		};
+		
+		for(var i = 0;i<jc(".heroShot").elements.length;i++){
+		gameBody.listenBoom(jc(".heroShot").elements[i],jc("#badGay_boss_2"),gameBody.badGay_boss_2);
+		};
+}
+
+	
+	
+	
+		function getLevel(level,number){
+		gameBody.timer = setInterval(function(){
+				if(number==gameBody.levelNum[6]){
+					gameBody.badGay_boss_2.draw({canvas:"mycanvas",x:100,y:-156,id:"badGay_boss_2"});
+					gameBody.badGay_boss_2.life = 50;
+					clearInterval(gameBody.timer);
+					var bossTime = setInterval(function(){  //监测boss是否死亡
+						if(gameBody.badGay_boss_2.life==0){
+							totalNum[0].innerHTML = number + 10;
+							clearInterval(bossTime);
+							getLevel(level,number);
+						}
+					},300);
+				}
+				if(number==gameBody.levelNum[3]){
+					gameBody.badGay_boss_1.draw({canvas:"mycanvas",x:100,y:-156,id:"badGay_boss_1"});
+					gameBody.badGay_boss_1.life = 50;
+					clearInterval(gameBody.timer);
+					var bossTime = setInterval(function(){  //监测boss是否死亡
+						if(gameBody.badGay_boss_1.life==0){
+							totalNum[0].innerHTML = number + 10;
+							clearInterval(bossTime);
+							getLevel(level,number);
+						}
+					},300);
+				}
+				if(level<1) //是否发射子弹
+						shotOnff = false;
+				else
+						shotOnff = true;
+				switch(level){
+					case 0:
+							speed = 3000;
+							shotOnff = false;
+							break;
+					case 1: 
+							speed = 4000;
+							shotOnff = false;
+							break;
+					case 2:
+							speed = 3000;
+							shotOnff = true;
+							break;
+					case 3:
+							speed = 4000;
+							shotOnff = true;
+							break;
+					default:
+							speed = 5000;
+							shotOnff = true;
+							break;
+
+				}
+				if(Math.floor(Math.random()*10)>5){
+					gameBody.plan1.push( new gameBody.badGaySmall_2({id:"id"+k1,index_k:k1,speed:speed,shotOnff:shotOnff}));
+				}
+				else
+					gameBody.plan2.push( new gameBody.badGaySmall_1({id:"id"+k1,index_k:k1,speed:speed,shotOnff:shotOnff}));
+
+				k1++;
+				number++;
+				for(var i in gameBody.levelNum){
+					if(number==gameBody.levelNum[i]){
+						level++;
+						gameBody.levelTo(level+1);
+					}
+				}
+				
+			},2000);
+		}
+		
+		
+		function listenBoom(obj1,obj2,obj3,k,r){  //监听碰撞函数 子弹，飞机，飞机对像 第几个敌机
+		
+			
+			try{  //防止在监测时有的飞机数组位置已改变而造成的获取不到height和width
+				var x1 = obj1.position().x;
+				var y1 = obj1.position().y;
+				var x2 = obj2.position().x;
+				var y2 = obj2.position().y;
+				if(x1+5>=x2&&x1<=x2+obj3.width)
+					if(y1+5>=y2&&y1<=y2+obj3.height){
+						obj1.del();
+						obj3.life--;
+						if(r)
+							gameBody.attackMe();
+						if(obj3.break(k||null)){
+							totalNum[0].innerHTML =totalNum[0].innerHTML/1 + 1;
+						}
+						//console.log(obj3.life)
+						//console.log("life is"+gameBody.heroPlan_1.life);
+					}
+			}
+			catch(err){
+				return;
+			}
+		}
+		
+		
+			
+		
+		function clickCanvas(obj2){  //给canvas里面的元素绑定事件 玩家控制
+			var mycanvas = document.getElementById("mycanvas");
+			mycanvas.addEventListener('touchstart',function(ev){
+				
+				var ev = ev || window.event;
+				ev.preventDefault();
+				x = ev.changedTouches[0].clientX;
+				y = ev.changedTouches[0].clientY;
+				var left = 	jc('#'+obj2).position().x; 
+				var tops = jc('#'+obj2).position().y;
+				
+				if(x>=left&&x<=left+gameBody.heroPlan_1.width())
+					if(y>=tops-gameBody.heroPlan_1.width()/4&&y<=tops+gameBody.heroPlan_1.width()/2)
+					{
+						
+						document.addEventListener('touchmove',function(ev){
+							var ev = ev || window.event;
+							x = ev.changedTouches[0].clientX-gameBody.heroPlan_1.width()/2;
+							y = ev.changedTouches[0].clientY-gameBody.heroPlan_1.width();
+							jc('#'+obj2).translateTo(x,y);
+							gameBody.socketSend(x,y,gameBody.id);  //发送给后台;
+						},false); 
+						document.addEventListener("touchend",function(){
+							document.ontouchmove= null;
+							document.touchend = null;
+						})
+
+					}
+
+			},false)
+			
+		}	
+		
+
+		
+		function getRadiu(i,R,boss_x,boss_y){ //半径来控制扩缩
+			//R = 78; //怪物半径
+			row = 180 / 9;
+			left =78 - Math.cos(row*i*Math.PI/180)*R;
+			tops = Math.sin(row*i*Math.PI/180)*R;	
+			X = boss_x+ Math.floor(left)
+			Y = boss_y+ 88 + Math.floor(tops);
+			return {left:X,tops:Y}
+		}
+
+		function getRadiu_2(i,R,boss_x,boss_y){  // i 第几个  r 可加数值 
+			row = 180 / 9;
+			left =78 - Math.cos(row*i*Math.PI/180)*R;
+			tops = Math.sin(row*i*Math.PI/180)*R;	
+			X = boss_x+ Math.floor(left)
+			Y = boss_y+ R + 85;
+			return {left:X,tops:Y}
+		}
+
+	var delay  = document.getElementById("delay");
+	setTimeout(function(){
+		var oAudio = document.getElementById('heroMusic');      //发射子弹   
+		 oAudio.src = 'mp3/hero.mp3';
+		 oAudio.volume  = 0.1;
+		 var breaks = document.getElementById("break");
+		 breaks.src = 'mp3/break.mp3';
+	},1000)
+	</script>
+</html>

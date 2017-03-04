@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<meta charset="UTF-8">
+<head>
+	<title></title>
+</head>
+
+
+ <meta name="viewport" content="width=640, minimum-scale=0.5, maximum-scale=0.75, user-scalable=no,target-densityDpi=device-dpi">
+
+<link rel="stylesheet" type="text/css" href="css/style.css">
+<link rel="stylesheet" type="text/css" href="css/keyframes.css">
+<script type="text/javascript" src="js/socket.io.js"></script>
+<script type="text/javascript" src="js/jcscript.js"></script>
+<body>
+<section class="moveIn">
+	<div class="table"></div>
+	<div class="star" style="background:url(img/star.png);"></div>
+	<div class="star-s" style="background:url(img/star-s.png);"></div>
+	<div class="content">
+		<div style="background:url(img/boom.png);"></div>
+		<div style="background:url(img/Thanks.png);"></div>
+		<div style="background:url(img/qing.png);"></div>
+		
+	</div>
+	<div id="progress">
+		<div class="progress"><span></span></div>
+		<div class="progressNum">0%</div>
+	</div>
+	
+</section>
+
+<script type="text/javascript">
+
+var imgArr = [
+	"arrow.png",
+	"boom.png",
+	"qing.png",
+	"star.png",
+	"star-s.png",
+	"Thanks.png",
+	"b79712abfe02466112ab6733f592660f.jpg",
+	"Plane_67.324675324675px_1132190_easyicon.net.png",
+	"1472390016_242575.png",
+	"rock.png"
+];
+
+var imgNum = 0;
+var progress = document.getElementsByClassName('progress')[0].getElementsByTagName('span')[0];
+var progressNum = document.getElementsByClassName("progressNum")[0];
+
+for(var i = 0;i<imgArr.length;i++){
+	var imgs = new Image();
+	imgs.src ="img/" + imgArr[i];
+	 imgs.onload = function(){
+	 	imgNum++;
+	 	progress.style.width =Math.floor(imgNum/imgArr.length*100) + "%";
+	 	progressNum.innerHTML = Math.floor(imgNum/imgArr.length*100) + "%";
+	 	if(imgNum==imgArr.length){
+	 		var pres = document.getElementById('progress');
+	 		pres.style.display = "none";
+	 		//addEvent();
+	 	}
+	 }
+}
+
+
+</script>
+<section class="Index_2">
+
+	<img src="img/b79712abfe02466112ab6733f592660f.jpg" class="moon">
+	<img class="withMe" src="img/1472390016_242575.png"></img>
+	<img src="img/Plane_67.324675324675px_1132190_easyicon.net.png" class="plan_In plan">
+	<div class="rocker"></div>
+	<div class="humben"></div>
+
+	<div class="findFriend">找人刷团</div>
+	<div class="singHit">独自对战</div>
+</section>
+
+
+<div class="friendCode" style="display: none;">
+	<div class="codeHead">匹配码<span class="closeCode">+</span></div>
+	<div class="codeInput">
+		<input type="text" class="code"></input>
+		<span>(匹配码和你的朋友填写的一致，越复杂匹配率越高)</span>
+	</div>
+	<div class="codeOk">确定</div>
+</div>
+
+<section class="gameTable"> 
+	<canvas id="mycanvas"  style="position: absolute;" ></canvas>
+	<script type="text/javascript">
+		var mycanvas = document.getElementById("mycanvas");
+		mycanvas.width = document.body.clientWidth;
+		mycanvas.height = document.body.clientHeight;
+	</script>
+	<div id="delay">
+		<!--
+		<div class="gameHead">
+			玩家1<br/>
+			分数:<span class="totalNum">0</span><br/>
+			玩家生命:<span class="totalLife"> 100</span><br/>
+			
+		</div>
+		<div class="gameHeadRight" style="display: none;">
+			玩家2<br/>
+			分数:<span class="totalNum">0</span><br/>
+			玩家生命:<span class="totalLife"> 100</span><br/>
+			
+		</div>
+		<div id="levelTo">
+			第 <span>1</span> 关
+		</div>
+		<div id="musicCls" style="display: hidden;">
+			<audio id="heroMusic"></audio>
+			<audio id="break"></audio>
+		</div> -->
+	</div>
+	
+	<div class="connectRad">
+		<li></li>
+		<li></li>
+		<li></li>
+		<span>正在匹配...</span>
+	</div>
+
+</section>
+<div class="arrow" style="background:url(img/arrow.png);"></div>
+</body>
+<script type="text/javascript">
+var page = 0;
+var pageClass = ["moveOut","moveOut_1"];
+var pageClassInf = ["moveIn","moveIn_1"];
+var section = document.getElementsByTagName('section');
+var startY;
+/*
+var socket = io.connect("ws://localhost:3000");
+		var myDate = new Date();
+		var random = Math.floor(Math.random()*100000);
+		username = random+Math.floor(myDate);
+
+*/
+
+var fun1 = function(ev){
+			var ev = ev || window.event;
+			ev.preventDefault();
+			startY =  ev.changedTouches[0].clientY;
+		}
+var fun2 = function(ev){
+			var ev = ev || window.event;
+			var y =  ev.changedTouches[0].clientY;
+			if(y<startY){
+					if(pageClass.length-1 > page){
+							section[page].className += " " + pageClass[page];	
+							removeClass(section[page],pageClassInf[page]);	
+							removeClass(section[page+1],pageClass[page+1]);
+							section[page+1].className += " " + pageClassInf[page+1];
+							page++;
+							if(page==pageClass.length)
+								{
+			
+									}
+						}
+				}
+			if(y>startY){
+					if(page!=0){
+						page--;
+							section[page].className += " " + pageClassInf[page];
+							section[page+1].className += " " + pageClass[page+1];
+							removeClass(section[page],pageClass[page]);
+							removeClass(section[page+1],pageClassInf[page+1]);	
+					}
+				}
+		}
+function addEvent(){
+
+		
+		document.addEventListener("touchstart",fun1,false);
+		document.addEventListener("touchend",fun2,false);
+	}
+
+function cancelEvent(){
+		document.removeEventListener("touchstart",fun1,false);
+		document.removeEventListener("touchend",fun2,false);
+}
+
+
+	var findFriend =document.getElementsByClassName('findFriend')[0];
+	var singHit = document.getElementsByClassName("singHit")[0];
+	var friendCode = document.getElementsByClassName("friendCode")[0];
+	var closeCode = document.getElementsByClassName("closeCode")[0];
+	var codeOk = document.getElementsByClassName("codeOk")[0];
+	var code = document.getElementsByClassName("code")[0];
+	var gameTable = document.getElementsByClassName("gameTable")[0];
+	var arrow = document.getElementsByClassName("arrow")[0];
+	var connectRad= document.getElementsByClassName("connectRad");
+
+	addEvent();
+	findFriend.addEventListener("touchend",function(){
+		friendCode.style.display = "block";
+		code.focus();
+		cancelEvent();
+	},false);
+	singHit.addEventListener("touchend",function(){
+	cancelEvent();
+	connectRad[0].style.display = "none";
+	gameTable.style.zIndex = 10;
+	arrow.style.display = "none";
+	//startGame();
+	window.location.href = "main.html";
+	},false);
+	closeCode.addEventListener("touchend",function(){
+		friendCode.style.display = "none";
+		addEvent()
+
+	},false);
+	closeCode.addEventListener("touchstart",function(){
+		this.style.color = "#000";
+	},false);
+	codeOk.addEventListener("touchstart",function(){
+		this.style.background = "#ff5722"
+	},false)
+	codeOk.addEventListener("touchend",function(){
+		this.style.background = "#ff9800";
+		//connectUser(code.value);
+		window.location = "main.twoMan.html";
+	
+	},false)
+
+//code.value
+
+function connectUser(code){	//连接用户
+
+	
+	gameTable.style.zIndex = 10;
+	arrow.style.display = "none";
+	var list = document.getElementsByClassName('connectRad')[0].getElementsByTagName('li'); //等待点点....
+	var num = 0;
+	var timer = null;
+	var onoff = false;
+
+	
+	time();
+	//getConnect(code)
+	function getConnect(code){
+		
+		userid = code; 
+		socket.emit('login', {userid:userid, username:username});
+		socket.on('logins', function(o){
+					if(o.statu==1){
+						console.log("匹配成功");
+						onoff = true;
+					}
+					console.log(o);
+			});
+		var move_x = 20;
+		var move_y = 30;
+		/*
+		var send = document.getElementById('send');
+		send.onclick = function(){
+
+			socket.emit('reSend',{
+					x : move_x,
+					y : move_y,
+					name : username
+				});
+		}	
+		socket.on("receive",function(o){  //鎺ユ敹鍒�
+			console.log(o);
+		});
+		*/
+
+	}
+	function time(){	//等待定时器
+	
+		timer = setInterval(function(){
+		
+		if(onoff){
+			clearInterval(timer);
+		}
+		if(num%3==0)
+			num = 1;
+		else if((num-1)%3==0)
+			num = 2;
+		else
+			num = 0;
+		for(var i = 0;i<3;i++){
+					
+					list[i].style.webkitTransform = "scale(-1,-1)";
+				}
+		list[num].style.webkitTransform = "scale(1.3,1.3)";
+	},200)
+	}
+}
+function hasClass(obj, cls) {  
+    return obj.className.match(new RegExp('(\\s|^)' + cls + '(\\s|$)'));  
+}  
+function removeClass(obj, cls) {  
+    if (hasClass(obj, cls)) {  
+        var reg = new RegExp('(\\s|^)' + cls + '(\\s|$)');  
+        obj.className = obj.className.replace(reg, ' ');  
+
+    }  
+}  
+
+</script>
+
+<script type="text/javascript" src="../gameBody.js"></script>
+</html>
